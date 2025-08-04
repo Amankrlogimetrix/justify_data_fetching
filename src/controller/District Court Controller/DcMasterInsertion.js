@@ -121,7 +121,36 @@ const staticDataController = async (req, res) => {
   }
 };
 
+const getStateAndTheirDistricts = async (req,res) =>{
+  try {
+
+    const findStateAndDistricts = await stateModel.findAll({
+      include: [
+        {
+          model: districtModel,
+          as: 'districts',
+          attributes: ['id', 'name', 'own_state_id','district_id'], 
+          
+        },
+      ],
+      attributes: ['id', 'name','state_id'], 
+      order: [
+      ['name', 'ASC']
+      ],
+    });
+    findStateAndDistricts.forEach(state => {
+      state.districts.sort((a, b) => a.name.localeCompare(b.name));
+    });
+
+      return res.status(200).send({status:true, data: findStateAndDistricts})
+
+  }catch(error){
+    console.error("Error fetching states or districts:", error);
+    return res.status(500).json({ status :false , message : "Internal Server Error" });
+  }
+}
 
 module.exports = {
     staticDataController,
+    getStateAndTheirDistricts
 };

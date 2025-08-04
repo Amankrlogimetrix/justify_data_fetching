@@ -1,10 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const { staticDataController,  } = require('../controller/District Court Controller/DcMasterInsertion');
-const { highCourtsData } = require('../controller/High Court Controller/HcMasterInsertion');
+const { getStateAndTheirDistricts,  } = require('../controller/District Court Controller/DcMasterInsertion');
+const { getUsersDistrictsCases, getDistrictsCases } = require('../controller/Cases Controller/getCasesDetails');
 
-router.post('/state-data', staticDataController);
-router.post('/highCourtsData', highCourtsData);
+router.get("/get-state-district",getStateAndTheirDistricts);
+router.get('/get-districts-cases', getUsersDistrictsCases);
+router.get("/get-districts-cases/:id",getDistrictsCases);
+
 
 
 module.exports = router;

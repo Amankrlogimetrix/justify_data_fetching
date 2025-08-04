@@ -52,6 +52,11 @@ const tblDcCases = sequelize.define('dc_adv_cases', {
         type: Sequelize.STRING(1000),
         allowNull: true,
     },
+    adv_id:{
+        type: Sequelize.INTEGER,
+        allowNull: true,
+
+    },
     raw:{
         type: Sequelize.TEXT,
         allowNull: true,
