@@ -7,8 +7,8 @@ const { staticDataController } = require('../controller/District Court Controlle
 const { highCourtsData } = require('../controller/High Court Controller/HcMasterInsertion');
 
 
-router.post('/state-data', staticDataController);
-router.post('/highCourtsData', highCourtsData);
+// router.post('/state-data', staticDataController);
+// router.post('/highCourtsData', highCourtsData);
 router.post('/cases-barcouncil', fetchCasesDetailsAsPerBarCouncil);
 router.post("/cases-highcourt",fetchHighCourtsData)
 
