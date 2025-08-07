@@ -1,4 +1,4 @@
-const { HcCourtModel, HcBenchesModel} = require("../../models");
+const { HcCourtModel, HcBenches} = require("../../models");
 const { Op } = require("sequelize");
 
 
@@ -41,7 +41,7 @@ const highCourtsData = async (req, res) => {
       }
       const benchesData = await fetch_benches.json();
       for (const bench of benchesData.benches) {
-        await HcBenchesModel.create({
+        await HcBenches.create({
           own_hc_court_id: court.id,
           bench_id: bench.id,
           name: bench.name,
