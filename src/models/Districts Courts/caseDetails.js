@@ -1,7 +1,7 @@
 const Sequelize = require("sequelize");
 const sequelize = require("../../utils/dbConfig.js");
 
- const CaseDetails = sequelize.define('case_details', {
+ const DcCaseDetails = sequelize.define('dc_case_details', {
     id:{
         type:Sequelize.INTEGER,
         primaryKey:true,
@@ -51,8 +51,8 @@ const sequelize = require("../../utils/dbConfig.js");
       type: Sequelize.JSONB,
     },
   }, {
-    tableName: 'case_details',
+    tableName: 'dc_case_details',
     timestamps: true,
   });
 
-  module.exports = CaseDetails
+  module.exports = DcCaseDetails

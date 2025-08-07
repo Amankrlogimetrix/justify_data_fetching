@@ -5,9 +5,11 @@ const districtModel = require("./districtModel");
 const complexModel = require("./Districts Courts/complexModel.js");
 const DcCourtModel = require("./Districts Courts/courtsModels.js");
 const DcCases = require("./Districts Courts/advCaseModel.js");
+const DcCaseDetails = require("./Districts Courts/caseDetails.js");
 const HcCourtModel = require("./High Courts/hcCourtModel.js");
-const HcBenchesModel = require("./High Courts/benchesModel.js");
-const CaseDetails = require("./Districts Courts/caseDetails.js");
+const HcBenches = require("./High Courts/benchesModel.js");
+const HcCases = require("./High Courts/advCaseModel.js");
+const HcCaseDetails = require("./High Courts/caseDetails.js");
 
 stateModel.hasMany(districtModel, {
   foreignKey: 'own_state_id',
@@ -20,8 +22,8 @@ districtModel.belongsTo(stateModel, {
 });
 
 
-DcCases.hasMany(CaseDetails, { foreignKey: 'adv_cases_id' });
-CaseDetails.belongsTo(DcCases, { foreignKey: 'adv_cases_id' });
+DcCases.hasMany(DcCaseDetails, { foreignKey: 'adv_cases_id' });
+DcCaseDetails.belongsTo(DcCases, { foreignKey: 'adv_cases_id' });
 
 
 
@@ -33,7 +35,9 @@ module.exports = {
     complexModel,
     DcCourtModel,
     HcCourtModel,
-    HcBenchesModel,
+    HcBenches,
     DcCases,
-    CaseDetails
+    DcCaseDetails,
+    HcCases,
+    HcCaseDetails
 };

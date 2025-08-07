@@ -1,11 +1,15 @@
-const { Op } = require("sequelize");
+const { Op, where } = require("sequelize");
 const {
   stateModel,
   districtModel,
   DcCourtModel,
-  HcCourtModel,
   DcCases,
-  CaseDetails,
+  DcCaseDetails,
+  HcCourtModel,
+  HcBenchesModel,
+  HcBenches,
+  HcCases,
+  HcCaseDetails,
 } = require("../../models");
 
 function convertYearFromCode(input) {
@@ -105,8 +109,8 @@ function convertYearFromCode(input) {
 
 const fetchCasesDetailsAsPerBarCouncil = async (req, res) => {
   try {
-    let { BarCouncil, districtIds } = req.body;
-
+    let { BarCouncil, districtIds, adv_id } = req.body;
+    // let adv_id = req.decodedToken.data || 1
     if (
       !BarCouncil ||
       !districtIds ||
@@ -117,7 +121,7 @@ const fetchCasesDetailsAsPerBarCouncil = async (req, res) => {
         .status(400)
         .json({ message: "BarCouncil and districtIds are required" });
     }
-    BarCouncil = convertYearFromCode(BarCouncil);
+    BarCouncil = convertYearFromCode(BarCouncil.trim());
     const [state, number, year] = BarCouncil.split("/");
     let findDistrictDetails = await districtModel.findAll({
       where: {
@@ -166,22 +170,6 @@ const fetchCasesDetailsAsPerBarCouncil = async (req, res) => {
 
           for (const caseItem of court.cases) {
             if (caseItem.cnr && caseItem.caseNumber) {
-              let caseStatus;
-              const decisionDate = caseItem.dateOfDecision;
-              const nature = caseItem.natureOfDisposal?.toLowerCase() || "";
-
-              if (nature.includes("dismissed")) {
-                caseStatus = "Lost";
-              } else if (nature.includes("granted")) {
-                caseStatus = "Win";
-              } else if (
-                !decisionDate ||
-                decisionDate === "1970-01-01T00:00:00.000Z"
-              ) {
-                caseStatus = "Pending";
-              } else {
-                caseStatus = "Decision Done";
-              }
               allCasesToInsert.push({
                 cnr: caseItem.cnr,
                 title: caseItem.title?.trim(),
@@ -196,6 +184,7 @@ const fetchCasesDetailsAsPerBarCouncil = async (req, res) => {
                   )?.id || null,
                 district_id: districtId,
                 advocate_name: advocateName,
+                adv_id: adv_id,
                 raw: JSON.stringify(caseItem),
               });
             }
@@ -216,11 +205,9 @@ const fetchCasesDetailsAsPerBarCouncil = async (req, res) => {
         });
       }
     }
-    await fetchCasesDetailsAsPerCnr(cnrs);
+    await fetchCasesDetailsAsPerCnr(cnrs, "DCCOURT");
     res.status(200).json({
-      message: `${allCasesToInsert.length} case(s) inserted successfully`,
-      count: allCasesToInsert.length,
-      data: allCasesToInsert,
+      message: `${allCasesToInsert.length} case(s) fetched successfully`,
     });
   } catch (error) {
     console.error("Error fetching case details:", error);
@@ -228,7 +215,7 @@ const fetchCasesDetailsAsPerBarCouncil = async (req, res) => {
   }
 };
 
-const fetchCasesDetailsAsPerCnr = async (cnrList) => {
+const fetchCasesDetailsAsPerCnr = async (cnrList,type) => {
   const batchSize = 10;
   const casesToInsert = [];
 
@@ -237,18 +224,31 @@ const fetchCasesDetailsAsPerCnr = async (cnrList) => {
 
     const promises = batch.map(async (item) => {
       try {
-        const response = await fetch(
-          `${process.env.HOST_E_COURT}/district-court/case`,
-          {
-            method: "POST",
-            headers: {
+       let response
+        if(type == "DCCOURT"){
+           response = await fetch(
+            `${process.env.HOST_E_COURT}/district-court/case`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `${process.env.E_COURT_AUTH_TOKEN}`,
+              },
+              body: JSON.stringify({ cnr: item.cnr }),
+            }
+          );
+        }else if(type == "HCCOURT"){
+          response = await fetch(
+            `${process.env.HOST_E_COURT}/high-court/case`,
+            {
+              method: "POST",
+              headers: {
               "Content-Type": "application/json",
               Authorization: `${process.env.E_COURT_AUTH_TOKEN}`,
-            },
-            body: JSON.stringify({ cnr: item.cnr }),
-          }
-        );
-
+              },
+              body: JSON.stringify({ cnr: item.cnr }),
+            })
+        }
         const data = await response.json();
 
         if (!data || !data.cnr) return;
@@ -257,31 +257,56 @@ const fetchCasesDetailsAsPerCnr = async (cnrList) => {
           data.status?.natureOfDisposal,
           data.status?.decisionDate
         );
+        if(type == "DCCOURT"){
+            casesToInsert.push({
+              cnr: data.cnr,
+              title: data.title,
+              actsAndSections: data.actsAndSections,
+              details: data.details,
+              firstInformationReport: data.firstInformationReport,
+              history: data.history,
+              orders: data.orders,
+              parties: data.parties,
+              status: data.status,
+              case_status: caseStatus,
+              adv_cases_id: item.id,
+              raw: data,
+            });
+        }else if(type == "HCCOURT"){
+            casesToInsert.push({
+              cnr: data.cnr,
+              filing: data.filing,
+              registration: data.registration,
+              status:data.status,
+              case_status:caseStatus,
+              parties : data.parties,
+              acts: data.acts,
+              sub_matters : data.subMatters,
+              is_details: data.iaDetails,
+              category_details:data.categoryDetails,
+              document_details: data.documentDetails,
+              objections: data.objections,
+              history: data.history,
+              orders: data.orders,
+              adv_cases_id:item.id,
+              raw:data
+            })
+        }
 
-        casesToInsert.push({
-          cnr: data.cnr,
-          title: data.title,
-          actsAndSections: data.actsAndSections,
-          details: data.details,
-          firstInformationReport: data.firstInformationReport,
-          history: data.history,
-          orders: data.orders,
-          parties: data.parties,
-          status: data.status,
-          case_status: caseStatus,
-          adv_cases_id: item.id,
-          raw: data,
-        });
       } catch (err) {
         console.error(`Failed to fetch for CNR ${item.cnr}:`, err.message);
       }
     });
 
-    await Promise.allSettled(promises); 
+    await Promise.allSettled(promises);
   }
 
-  if (casesToInsert.length > 0) {
-    await CaseDetails.bulkCreate(casesToInsert, { ignoreDuplicates: true });
+  if (casesToInsert.length > 0 && type == "DCCOURT") {
+    await DcCaseDetails.bulkCreate(casesToInsert, { ignoreDuplicates: true });
+    console.log(`${casesToInsert.length} cases inserted successfully.`);
+  }
+  if (casesToInsert.length > 0 && type == "HCCOURT") {
+    await HcCaseDetails.bulkCreate(casesToInsert, { ignoreDuplicates: true });
     console.log(`${casesToInsert.length} cases inserted successfully.`);
   }
 };
@@ -290,6 +315,7 @@ function getCaseStatus(natureOfDisposal, decisionDate) {
   const normNature = natureOfDisposal?.toLowerCase() || "";
   if (normNature.includes("dismissed")) return "Lost";
   if (normNature.includes("granted")) return "Win";
+  if (normNature.includes("refused")) return "Refused";
 
   if (!decisionDate || decisionDate === "1970-01-01T00:00:00.000Z")
     return "Pending";
@@ -297,6 +323,101 @@ function getCaseStatus(natureOfDisposal, decisionDate) {
   return "Decision Done";
 }
 
+const fetchHighCourtsData = async (req, res) => {
+  try {
+    let { name, benchIds, adv_id } = req.body;
+    name = name.trim();
+    if (
+      !name ||
+      !stage ||
+      !Array.isArray(benchIds) ||
+      districtIds.length === 0
+    ) {
+      return res
+        .status(400)
+        .json({ message: "BarCouncil and benchIds are required" });
+    }
+    let findBenchDetails = await HcBenches.findAll({
+      where: {
+        bench_id: {
+          [Op.in]: benchIds,
+        },
+      },
+      raw: true,
+    });
+    let allCasesToInsert = [];
+
+    for (const benchId of benchIds) {
+      const body = {
+        name,
+        stage: "BOTH",
+        benchId,
+      };
+
+      const response = await fetch(
+        `${process.env.HOST_E_COURT}/high-court/search/advocate-name`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `${process.env.E_COURT_AUTH_TOKEN}`,
+          },
+          body: JSON.stringify(body),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!Array.isArray(data) || data.length === 0) {
+        console.log(`No cases found for district ${districtId}`);
+        continue;
+      }
+
+      for (const item of data) {
+        allCasesToInsert.push({
+          cnr: item.cnr,
+          case_number: item.caseNumber?.trim(),
+          title: item.title?.trim(),
+          type: item.type.trim(),
+          date_of_decision: item.dateOfDecision?.trim(),
+          bench_id: benchId,
+          own_bench_id:
+            findBenchDetails.find(
+              (bench) => bench.bench_id === benchId
+            )?.id || null,
+          adv_id: adv_id,
+          raw: JSON.stringify(item),
+        });
+      }
+    }
+    let cnrs = []
+
+    if(allCasesToInsert.length > 0 ){
+      let createData = await HcCases.bulkCreate(allCasesToInsert,{
+        returning:true
+      })
+      for(let data of createData){
+        cnrs.push({
+          id: data.id,
+          cnr:data.cnr
+
+        })
+      }
+    }
+    await fetchCasesDetailsAsPerCnr(cnrs, "HCCOURT");
+    res.status(200).json({
+      message: `${allCasesToInsert.length} case(s) fetched successfully`,
+    });
+
+  } catch (error) {
+    return res.status(500).send({ status: false, message: "Server Error" });
+  }
+};
+
+
+
+
 module.exports = {
   fetchCasesDetailsAsPerBarCouncil,
+  fetchHighCourtsData
 };

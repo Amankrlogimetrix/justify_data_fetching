@@ -6,7 +6,7 @@ const {
   DcCourtModel,
   HcCourtModel,
   DcCases,
-  CaseDetails,
+  DcCaseDetails,
 } = require("../../models");
 
 
@@ -26,8 +26,8 @@ const getUsersDistrictsCases = async (req, res) => {
       },
       include: [
         {
-          model: CaseDetails,
-          as: "case_details",
+          model: DcCaseDetails,
+          as: "dc_case_details",
           attributes: 
             ["id", "case_status"],
           
@@ -39,7 +39,7 @@ const getUsersDistrictsCases = async (req, res) => {
     return res.status(200).json({ status: true, data: userDistrictsCases });
   } catch (error) {
     console.error("Error fetching user districts cases:", error);
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ status:false, message:error.message , mrssage: "Internal server error" });
   }
 };
 
@@ -49,9 +49,9 @@ const getDistrictsCases = async (req, res) => {
         if (!id) {
             return res.status(400).json({ message: "id is required" });
         }
-        let findCaseDetails = await CaseDetails.findOne({
+        let findCaseDetails = await DcCaseDetails.findOne({
             where: {
-               id:id 
+               adv_cases_id:id 
             },
             raw:true
         })
